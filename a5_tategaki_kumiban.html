@@ -19,25 +19,32 @@ input,select,textarea{font:inherit;padding:6px;border:1px solid var(--bd);border
 textarea{min-height:220px;resize:vertical}
 button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac);color:#fff;font-weight:700;cursor:pointer}
 .note{font-size:11px;opacity:.7}
-#pvw{overflow-x:auto;min-width:0}
+#pvw{overflow:hidden;min-width:0}
 #pv{display:grid;grid-template-columns:repeat(2,148mm);column-gap:0;row-gap:14px;width:max-content;align-items:start}
 .page{position:relative;width:148mm;height:210mm;background:#fff;color:#000;box-shadow:0 1px 6px rgba(0,0,0,.35);overflow:hidden}
 .clip{position:absolute;overflow:hidden}
-.flow{position:absolute;top:0;writing-mode:vertical-rl;text-align:justify;line-break:strict;overflow-wrap:break-word;text-combine-upright:digits 2;font-kerning:normal}
+.flow{position:absolute;top:0;writing-mode:vertical-rl;text-align:justify;line-break:strict;overflow-wrap:break-word;font-kerning:normal}
+.tcy{display:inline-block;writing-mode:horizontal-tb;width:1.2em;height:1em;line-height:.86em;text-align:center;text-indent:0;white-space:nowrap;vertical-align:baseline}
 .flow p{margin:0;white-space:pre-wrap}
 .flow p.ind{text-indent:1em}
 .hf{position:absolute;font-size:8pt;line-height:1;text-align:center;white-space:nowrap}
+.notice{padding:12px 16px 0;font-size:12px;line-height:1.7;opacity:.85}
+.sitefoot{margin-top:24px;border-top:1px solid var(--bd);padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;line-height:2;opacity:.85}
+.sitefoot a{color:inherit;text-decoration:underline}
+.sitefoot .sep{color:#a8678a;margin:0 12px}
 @media(max-width:800px){#pv{grid-template-columns:148mm}#pv .page{grid-row:auto!important;grid-column:auto!important}}
 @page{size:148mm 210mm;margin:0}
 @media print{
  html,body{background:#fff;margin:0}
- .app{display:block;padding:0}.panel{display:none}
- #pv{display:block;width:auto;zoom:1!important}
+ .app{display:block;padding:0}.panel,.notice,.sitefoot{display:none}
+ #pv{display:block;width:auto;transform:none!important}
+ #pvw{height:auto!important;overflow:visible!important}
  .page{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  .page:last-child{break-after:auto;page-break-after:auto}
 }
 </style></head>
 <body>
+<div class="notice">※アップロードした情報は保存されません(このページ内でのみ使用され、送信・保存は行われません)。<br>※ブラウザ（Win11、Chrome）、iOS26.6にて動作確認済みです</div>
 <div class="app">
 <div class="panel">
  <label>本文<textarea id="text">吾輩は猫である。名前はまだ無い。
@@ -54,9 +61,10 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
  </div>
  <div class="row"><label>ヘッダー<input id="hd"></label>
   <label style="flex:0 0 110px">ヘッダー位置<select id="hp"><option value="outer">ページ外側</option><option value="center">ページ中央</option><option value="inner">ページ内側</option></select></label></div>
- <label>フッター<input id="ft"></label>
+ <label>フッター(ページ中央)<input id="ft"></label>
  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ls" checked>左始まり(1ページ目が左。オフで右始まり)</label>
  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ai">段落頭を自動で1字下げ(行頭の空白は除去。「『（始まりは下げない)</label>
+ <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tc" checked>縦中横を使う(半角数字1〜4桁。5桁以上は横倒し)</label>
  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="pn" checked>ページ番号を表示</label>
  <button id="pdf">PDFで書き出す</button>
  <div id="st" class="note"></div>
@@ -64,13 +72,14 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 </div>
 <div id="pvw"><div id="pv"></div></div>
 </div>
+<footer class="sitefoot"><span>A5 縦書き組版ツール</span><span class="sep">|</span><a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a><span class="sep">|</span><a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 let timer,busy=false,again=false,LAST=null;
 function pinfo(p,ls,both){const n=p+1,left=ls?(n%2===1):(n%2===0);return{n,left,ml:both?20:(left?15:20)}} // 左ページ:ノドは右 / 右ページ:ノドは左
 function halign(hp,left){return hp==='center'?'center':((hp==='outer')===left?'left':'right')}
-function fit(){const mob=matchMedia('(max-width:800px)').matches,w=$('pvw').clientWidth,need=(mob?1:2)*148*PX;$('pv').style.zoom=Math.min(1,w/need)}
+function fit(){const pv=$('pv'),mob=matchMedia('(max-width:800px)').matches,z=Math.min(1,$('pvw').clientWidth/((mob?1:2)*148*PX));pv.style.transformOrigin='0 0';pv.style.transform=`scale(${z})`;$('pvw').style.height=pv.offsetHeight*z+'px'}
 addEventListener('resize',fit);
 const PX=96/25.4, PT=25.4/72;
 async function render(){
@@ -80,22 +89,25 @@ async function render(){
   const ls=$('ls').checked,sz=+$('size').value,font=$('font').value,rows=+$('cols').value,both=$('bind').value==='both';
   const text=$('text').value;
   const CW=113,CH=180,GAP=8,h=rows===2?(CH-GAP)/2:CH;
-  const N=Math.max(1,Math.floor(CW/(sz*PT*1.75))),pitch=CW/N;
+  const fpx=sz*PT*PX,CWpx=CW*PX;let best=null; // 行送りは整数pxにする(iOS等で小数pxが丸められてズレるのを防ぐ)
+  for(let q=Math.ceil(1.7*fpx);q<=Math.ceil(2.4*fpx);q++){const n=Math.round(CWpx/q),e=Math.abs(n*q-CWpx);if(n>=1&&(!best||e<best.e-.01))best={q,n,e}}
+  const pp=best.q,N=best.n,pitch=pp/PX,CWw=N*pitch;
   await Promise.race([
    Promise.all([document.fonts.load(`${sz}pt "${font}"`,text+'0123456789'),document.fonts.load(`bold ${sz}pt "${font}"`,'a')]),
    new Promise(r=>setTimeout(r,5000))]);
-  const ai=$('ai').checked;
+  const ai=$('ai').checked,tc=$('tc').checked,mc=document.createElement('canvas').getContext('2d'),tx=x=>{const e=esc(x);if(!tc)return e;mc.font=`${fpx}px '${font}',serif`;
+   return e.replace(/[0-9]+/g,m=>{if(m.length>4)return m;const k=Math.min(1,fpx/mc.measureText(m).width);return `<span class="tcy"${k<1?` style="transform:scaleX(${k.toFixed(3)})"`:''}>${m}</span>`})};
   const html=text.split(/\r\n|\r|\n/).map(l=>{
    if(!l.trim())return '<p><br></p>';
-   if(!ai)return `<p>${esc(l)}</p>`; // 入力のまま(自動の字下げ・空白追加なし)
+   if(!ai)return `<p>${tx(l)}</p>`; // 入力のまま(自動の字下げ・空白追加なし)
    const t=l.replace(/^[\s\u3000]+/,'');
-   return `<p${/^[「『（(〈《【〔\[]/.test(t)?'':' class="ind"'}>${esc(t)}</p>`;
+   return `<p${/^[「『（(〈《【〔\[]/.test(t)?'':' class="ind"'}>${tx(t)}</p>`;
   }).join('');
-  const fs=`font-family:'${font}',serif;font-size:${sz}pt;line-height:${pitch}mm;height:${h}mm;`;
+  const fs=`font-family:'${font}',serif;font-size:${sz}pt;line-height:${pp}px;height:${h}mm;--pp:${pp}px;`;
   // measure
   const m=document.createElement('div');m.className='flow';m.style.cssText=fs+'left:-99999px;visibility:hidden';
   m.innerHTML=html;document.body.appendChild(m);
-  const lines=Math.max(1,Math.round(m.getBoundingClientRect().width/(pitch*PX)));
+  const lines=Math.max(1,Math.round(m.getBoundingClientRect().width/pp));
   m.remove();
   const pages=Math.max(1,Math.ceil(lines/(N*rows)));
   const pv=$('pv');pv.innerHTML='';
@@ -107,38 +119,40 @@ async function render(){
    let s='';
    for(let r=0;r<rows;r++){
     const k=p*rows+r;
-    s+=`<div class="clip" style="left:${ml}mm;top:${15+r*(h+GAP)}mm;width:${CW}mm;height:${h}mm"><div class="flow" style="${fs}right:${-k*CW}mm">${html}</div></div>`;
+    s+=`<div class="clip" style="left:${ml+(CW-CWw)/2}mm;top:${15+r*(h+GAP)}mm;width:${N*pp}px;height:${h}mm"><div class="flow" style="${fs}right:${-k*N*pp}px">${html}</div></div>`;
    }
    const al=halign($('hp').value,left);
    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;top:7mm;text-align:${al}">${hd}</div>`;
-   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm">${ft}</div>`;
+   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm;text-align:center">${ft}</div>`;
    if($('pn').checked){
-    const pos=both?`left:${ml}mm;width:${CW}mm`:(left?'left:15mm':'right:15mm');
-    s+=`<div class="hf" style="bottom:7mm;${pos}">${n}</div>`;
+    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm;text-align:${halign('outer',left)}">${n}</div>`;
    }
    pg.innerHTML=s;pv.appendChild(pg);
   }
-  LAST={html,fs,N,pitch,h,rows,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
+  LAST={html,fs,N,pitch,CWw,pp,h,rows,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
   $('st').textContent=`${pages}ページ(${lines}行)`;fit();
  }catch(e){console.error(e);$('st').textContent='エラー: '+e.message}
  busy=false;
  if(again){again=false;render()}
 }
 function sched(){clearTimeout(timer);timer=setTimeout(render,400)}
-['text','cols','size','font','bind','hd','hp','ai','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
+['text','cols','size','font','bind','hd','hp','ai','tc','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
 
 const ROT=/[ー―—–〜～…‥（）「」『』〈〉《》【】〔〕［］｛｝＜＞＝：；＋－＿]/,SHIFT=/[、。，．]/,SMALL=/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
 function extract(){
  const L=LAST,m=document.createElement('div');m.className='flow';m.style.cssText=L.fs+'left:-99999px;visibility:hidden';
  m.innerHTML=L.html;document.body.appendChild(m);
- const b=m.getBoundingClientRect(),pp=L.pitch*PX,out=[],r=document.createRange(),tw=document.createTreeWalker(m,NodeFilter.SHOW_TEXT);
- for(let nd;nd=tw.nextNode();){const t=nd.data;for(let i=0;i<t.length;){
+ const b=m.getBoundingClientRect(),pp=L.pp,out=[],r=document.createRange(),tw=document.createTreeWalker(m,NodeFilter.SHOW_TEXT);
+ for(let nd;nd=tw.nextNode();){const t=nd.data;
+  if(nd.parentElement.classList.contains('tcy')){const q=nd.parentElement.getBoundingClientRect();out.push({ch:t,tcy:t,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX});continue}
+  for(let i=0;i<t.length;){
   const ch=String.fromCodePoint(t.codePointAt(i)),len=ch.length;
   if(!/\s/.test(ch)){r.setStart(nd,i);r.setEnd(nd,i+len);const q=r.getClientRects()[0];
-   if(q)out.push({ch,line:Math.floor((b.right-(q.left+q.right)/2)/pp),y:(q.top-b.top)/PX});}
+   if(q)out.push({ch,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX});}
   i+=len;}}
  m.remove();
- for(let i=0;i+1<out.length;i++){const a=out[i],c=out[i+1];if(/\d/.test(a.ch)&&/\d/.test(c.ch)&&Math.abs(a.y-c.y)<.05&&a.line===c.line){a.tcy=a.ch+c.ch;c.skip=1;i++}}
+ if(out.length){let cur=Math.max(0,Math.round((b.right-out[0].cx)/pp-.5)),pc=out[0].cx;
+  for(const c of out){if(Math.abs(pc-c.cx)>pp*.5){cur+=Math.max(1,Math.round((pc-c.cx)/pp));pc=c.cx}c.line=cur}}
  return out;
 }
 function drawPage(p,byK,M){
@@ -149,8 +163,8 @@ function drawPage(p,byK,M){
  for(let r=0;r<L.rows;r++){const k=p*L.rows+r,y0=15+r*(L.h+GAP);
   for(const c of byK.get(k)||[]){
    if(c.skip)continue;
-   const x=(ml+CW-((c.line-k*L.N)+.5)*L.pitch)*M,y=(y0+c.y)*M;
-   if(c.tcy){const w=g.measureText(c.tcy).width;g.save();g.translate(x,y+.88*f);g.scale(Math.min(1,f/w),1);g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.tcy,0,0);g.restore();continue}
+   const x=(ml+(CW-L.CWw)/2+L.CWw-((c.line-k*L.N)+.5)*L.pitch)*M,y=(y0+c.y)*M;
+   if(c.tcy){const w=g.measureText(c.tcy).width;g.save();g.translate(x,y+.866*f);g.scale(Math.min(1,f/w),1);g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.tcy,0,0);g.restore();continue}
    if(/[!-~]/.test(c.ch)||ROT.test(c.ch)){g.save();g.translate(x-.38*f,y);g.rotate(Math.PI/2);g.textAlign='left';g.textBaseline='alphabetic';g.fillText(c.ch,0,0);g.restore();continue}
    let dx=0,dy=0;if(SHIFT.test(c.ch)){dx=.5*f;dy=-.5*f}else if(SMALL.test(c.ch)){dx=.09*f;dy=-.09*f}
    g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.ch,x+dx,y+.88*f+dy);
@@ -158,8 +172,8 @@ function drawPage(p,byK,M){
  g.font=`${8*PT*M}px 'Noto Sans JP',sans-serif`;g.textBaseline='middle';
  const hy=(7+4*PT)*M,fy=(210-7-4*PT)*M,txt=(t,x,y,al)=>{g.textAlign=al;g.fillText(t,x*M,y)};
  const al=halign(L.hp,left);txt(L.hd,al==='left'?ml:al==='right'?ml+CW:ml+CW/2,hy,al);
- txt(L.ft,ml+CW/2,fy,'center');
- if(L.pn){if(L.both)txt(String(n),ml+CW/2,fy,'center');else txt(String(n),left?15:133,fy,left?'left':'right')}
+ const ax=a=>a==='left'?ml:a==='right'?ml+CW:ml+CW/2;txt(L.ft,ax('center'),fy,'center');
+ if(L.pn){const pa=halign('outer',left);txt(String(n),ax(pa),fy,pa)}
  return cv;
 }
 function makePDF(jpgs){
@@ -193,9 +207,10 @@ async function savePDF(){
    jpgs.push({d:new Uint8Array(await b.arrayBuffer()),w:cv.width,h:cv.height});
   }
   const blob=makePDF(jpgs);
+  const d=new Date(),fn=`a5-tategaki_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.pdf`;
   const dl=window.claude?await claude.use('downloads'):null;
-  if(dl){await dl.save({filename:'a5-tategaki.pdf',data:blob});}
-  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='a5-tategaki.pdf';document.body.appendChild(a);a.click();a.remove();}
+  if(dl){await dl.save({filename:fn,data:blob});}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();a.remove();}
  }catch(e){if(!e||e.code!=='declined'){console.error(e);$('st').textContent='PDF作成エラー: '+(e&&e.message||e)}}
  btn.disabled=false;btn.textContent=label;
 }
