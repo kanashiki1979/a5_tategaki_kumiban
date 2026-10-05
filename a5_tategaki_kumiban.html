@@ -7,7 +7,7 @@
 :root{box-sizing:border-box;--bg:#f2f1ee;--pn:#fff;--tx:#222;--bd:#ccc;--ac:#2a5bd7;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1c1e;--pn:#2a2a2d;--tx:#eee;--bd:#444;--ac:#7aa2ff}}
 :root[data-theme="dark"]{--bg:#1c1c1e;--pn:#2a2a2d;--tx:#eee;--bd:#444;--ac:#7aa2ff}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html{-webkit-text-size-adjust:none;text-size-adjust:none;scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "Noto Sans JP",sans-serif}
 .app{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px}
@@ -27,11 +27,12 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 .flow p{margin:0;white-space:pre-wrap}
 .flow p.ind{text-indent:1em}
 .hf{position:absolute;font-size:8pt;line-height:1;text-align:center;white-space:nowrap}
+@media(max-width:800px){#pv{grid-template-columns:148mm}#pv .page{grid-row:auto!important;grid-column:auto!important}}
 @page{size:148mm 210mm;margin:0}
 @media print{
  html,body{background:#fff;margin:0}
  .app{display:block;padding:0}.panel{display:none}
- #pv{display:block;width:auto}
+ #pv{display:block;width:auto;zoom:1!important}
  .page{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  .page:last-child{break-after:auto;page-break-after:auto}
 }
@@ -49,7 +50,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
  </div>
  <div class="row">
   <label>書体<select id="font"><option value="Noto Serif JP">明朝</option><option value="Noto Sans JP">ゴシック</option></select></label>
-  <label>綴じしろ(20mm)<select id="bind"><option value="gutter">ノド</option><option value="both">両端</option></select></label>
+  <label>綴じしろ(20mm)<select id="bind"><option value="gutter">ノド(両面印刷用)</option><option value="both">両端(袋とじ用)</option></select></label>
  </div>
  <div class="row"><label>ヘッダー<input id="hd"></label>
   <label style="flex:0 0 110px">ヘッダー位置<select id="hp"><option value="outer">ページ外側</option><option value="center">ページ中央</option><option value="inner">ページ内側</option></select></label></div>
@@ -59,14 +60,18 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="pn" checked>ページ番号を表示</label>
  <button id="pdf">PDFで書き出す</button>
  <div id="st" class="note"></div>
- <div class="note">印刷画面で送信先を「PDFに保存」、余白「なし」、「背景のグラフィック」オンにしてください。A5・縦書き。左始まりは右綴じ(見開きで1 / 3 2 / 5 4…)、右始まりは左綴じ(見開きで 1 / 2 3 / 4 5…)。天地・小口15mm、綴じしろ20mm。</div>
+ <div class="note">A5・縦書き。天地・小口15mm、綴じしろ20mm。左始まりは右綴じ(見開きで1 / 3 2 / 5 4…)、右始まりは左綴じ(見開きで1 / 2 3 / 4 5…)。PDFは300dpiの画像として保存されます(文字選択は不可)。</div>
 </div>
 <div id="pvw"><div id="pv"></div></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-let timer,busy=false,again=false;
+let timer,busy=false,again=false,LAST=null;
+function pinfo(p,ls,both){const n=p+1,left=ls?(n%2===1):(n%2===0);return{n,left,ml:both?20:(left?15:20)}} // 左ページ:ノドは右 / 右ページ:ノドは左
+function halign(hp,left){return hp==='center'?'center':((hp==='outer')===left?'left':'right')}
+function fit(){const mob=matchMedia('(max-width:800px)').matches,w=$('pvw').clientWidth,need=(mob?1:2)*148*PX;$('pv').style.zoom=Math.min(1,w/need)}
+addEventListener('resize',fit);
 const PX=96/25.4, PT=25.4/72;
 async function render(){
  if(busy){again=true;return}
@@ -96,8 +101,7 @@ async function render(){
   const pv=$('pv');pv.innerHTML='';
   const hd=esc($('hd').value),ft=esc($('ft').value);
   for(let p=0;p<pages;p++){
-   const n=p+1,left=ls?(n%2===1):(n%2===0); // 左ページ:ノドは右側 / 右ページ:ノドは左側
-   const ml=both?20:(left?15:20);
+   const {n,left,ml}=pinfo(p,ls,both);
    const pg=document.createElement('div');pg.className='page';
    pg.style.gridRow=Math.floor(n/2)+1;pg.style.gridColumn=left?1:2;
    let s='';
@@ -105,7 +109,7 @@ async function render(){
     const k=p*rows+r;
     s+=`<div class="clip" style="left:${ml}mm;top:${15+r*(h+GAP)}mm;width:${CW}mm;height:${h}mm"><div class="flow" style="${fs}right:${-k*CW}mm">${html}</div></div>`;
    }
-   const hp=$('hp').value,al=hp==='center'?'center':((hp==='outer')===left?'left':'right');
+   const al=halign($('hp').value,left);
    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;top:7mm;text-align:${al}">${hd}</div>`;
    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm">${ft}</div>`;
    if($('pn').checked){
@@ -114,14 +118,88 @@ async function render(){
    }
    pg.innerHTML=s;pv.appendChild(pg);
   }
-  $('st').textContent=`${pages}ページ(${lines}行)`;
+  LAST={html,fs,N,pitch,h,rows,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
+  $('st').textContent=`${pages}ページ(${lines}行)`;fit();
  }catch(e){console.error(e);$('st').textContent='エラー: '+e.message}
  busy=false;
  if(again){again=false;render()}
 }
 function sched(){clearTimeout(timer);timer=setTimeout(render,400)}
 ['text','cols','size','font','bind','hd','hp','ai','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
-$('pdf').onclick=()=>window.print();
+
+const ROT=/[ー―—–〜～…‥（）「」『』〈〉《》【】〔〕［］｛｝＜＞＝：；＋－＿]/,SHIFT=/[、。，．]/,SMALL=/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
+function extract(){
+ const L=LAST,m=document.createElement('div');m.className='flow';m.style.cssText=L.fs+'left:-99999px;visibility:hidden';
+ m.innerHTML=L.html;document.body.appendChild(m);
+ const b=m.getBoundingClientRect(),pp=L.pitch*PX,out=[],r=document.createRange(),tw=document.createTreeWalker(m,NodeFilter.SHOW_TEXT);
+ for(let nd;nd=tw.nextNode();){const t=nd.data;for(let i=0;i<t.length;){
+  const ch=String.fromCodePoint(t.codePointAt(i)),len=ch.length;
+  if(!/\s/.test(ch)){r.setStart(nd,i);r.setEnd(nd,i+len);const q=r.getClientRects()[0];
+   if(q)out.push({ch,line:Math.floor((b.right-(q.left+q.right)/2)/pp),y:(q.top-b.top)/PX});}
+  i+=len;}}
+ m.remove();
+ for(let i=0;i+1<out.length;i++){const a=out[i],c=out[i+1];if(/\d/.test(a.ch)&&/\d/.test(c.ch)&&Math.abs(a.y-c.y)<.05&&a.line===c.line){a.tcy=a.ch+c.ch;c.skip=1;i++}}
+ return out;
+}
+function drawPage(p,byK,M){
+ const L=LAST,{n,left,ml}=pinfo(p,L.ls,L.both),cv=document.createElement('canvas');cv.width=Math.round(148*M);cv.height=Math.round(210*M);
+ const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';
+ const f=L.sz*PT*M,CW=113,GAP=8;
+ g.font=`${f}px '${L.font}',serif`;
+ for(let r=0;r<L.rows;r++){const k=p*L.rows+r,y0=15+r*(L.h+GAP);
+  for(const c of byK.get(k)||[]){
+   if(c.skip)continue;
+   const x=(ml+CW-((c.line-k*L.N)+.5)*L.pitch)*M,y=(y0+c.y)*M;
+   if(c.tcy){const w=g.measureText(c.tcy).width;g.save();g.translate(x,y+.88*f);g.scale(Math.min(1,f/w),1);g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.tcy,0,0);g.restore();continue}
+   if(/[!-~]/.test(c.ch)||ROT.test(c.ch)){g.save();g.translate(x-.38*f,y);g.rotate(Math.PI/2);g.textAlign='left';g.textBaseline='alphabetic';g.fillText(c.ch,0,0);g.restore();continue}
+   let dx=0,dy=0;if(SHIFT.test(c.ch)){dx=.5*f;dy=-.5*f}else if(SMALL.test(c.ch)){dx=.09*f;dy=-.09*f}
+   g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.ch,x+dx,y+.88*f+dy);
+  }}
+ g.font=`${8*PT*M}px 'Noto Sans JP',sans-serif`;g.textBaseline='middle';
+ const hy=(7+4*PT)*M,fy=(210-7-4*PT)*M,txt=(t,x,y,al)=>{g.textAlign=al;g.fillText(t,x*M,y)};
+ const al=halign(L.hp,left);txt(L.hd,al==='left'?ml:al==='right'?ml+CW:ml+CW/2,hy,al);
+ txt(L.ft,ml+CW/2,fy,'center');
+ if(L.pn){if(L.both)txt(String(n),ml+CW/2,fy,'center');else txt(String(n),left?15:133,fy,left?'left':'right')}
+ return cv;
+}
+function makePDF(jpgs){
+ const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+ const push=d=>{const u=typeof d==='string'?enc.encode(d):d;parts.push(u);len+=u.length},P=jpgs.length;
+ push('%PDF-1.4\n');
+ offs[1]=len;push('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
+ offs[2]=len;push(`2 0 obj\n<</Type/Pages/Count ${P}/Kids[${jpgs.map((_,i)=>`${3+3*i} 0 R`).join(' ')}]>>\nendobj\n`);
+ const W=419.53,H=595.28;
+ jpgs.forEach((j,i)=>{const a=3+3*i,c=`q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+  offs[a]=len;push(`${a} 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${W} ${H}]/Resources<</XObject<</Im0 ${a+2} 0 R>>>>/Contents ${a+1} 0 R>>\nendobj\n`);
+  offs[a+1]=len;push(`${a+1} 0 obj\n<</Length ${c.length}>>\nstream\n${c}\nendstream\nendobj\n`);
+  offs[a+2]=len;push(`${a+2} 0 obj\n<</Type/XObject/Subtype/Image/Width ${j.w}/Height ${j.h}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${j.d.length}>>\nstream\n`);push(j.d);push('\nendstream\nendobj\n');});
+ const T=2+3*P,xo=len;
+ push(`xref\n0 ${T+1}\n0000000000 65535 f \n`+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join(''));
+ push(`trailer\n<</Size ${T+1}/Root 1 0 R>>\nstartxref\n${xo}\n%%EOF`);
+ return new Blob(parts,{type:'application/pdf'});
+}
+async function savePDF(){
+ const btn=$('pdf'),label=btn.textContent;btn.disabled=true;
+ try{
+  clearTimeout(timer);while(busy)await new Promise(r=>setTimeout(r,100));await render();
+  const L=LAST,M=300/25.4;
+  await Promise.race([Promise.all([document.fonts.load(`${L.sz}pt '${L.font}'`,$('text').value),document.fonts.load("8pt 'Noto Sans JP'",L.hd+L.ft+'0123456789')]),new Promise(r=>setTimeout(r,8000))]);
+  const chars=extract(),byK=new Map();
+  chars.forEach(c=>{const k=Math.floor(c.line/L.N);if(!byK.has(k))byK.set(k,[]);byK.get(k).push(c)});
+  const jpgs=[];
+  for(let p=0;p<L.pages;p++){
+   btn.textContent=`PDF作成中 ${p+1}/${L.pages}`;await new Promise(r=>setTimeout(r,0));
+   const cv=drawPage(p,byK,M),b=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
+   jpgs.push({d:new Uint8Array(await b.arrayBuffer()),w:cv.width,h:cv.height});
+  }
+  const blob=makePDF(jpgs);
+  const dl=window.claude?await claude.use('downloads'):null;
+  if(dl){await dl.save({filename:'a5-tategaki.pdf',data:blob});}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='a5-tategaki.pdf';document.body.appendChild(a);a.click();a.remove();}
+ }catch(e){if(!e||e.code!=='declined'){console.error(e);$('st').textContent='PDF作成エラー: '+(e&&e.message||e)}}
+ btn.disabled=false;btn.textContent=label;
+}
+$('pdf').onclick=savePDF;
 render();
 </script>
 </body></html>
