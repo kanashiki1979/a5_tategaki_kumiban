@@ -30,6 +30,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 .hf{position:absolute;font-size:8pt;line-height:1;text-align:center;white-space:nowrap}
 .notice{padding:12px 16px 0;font-size:12px;line-height:1.7;opacity:.85}
 .sitefoot{margin-top:24px;border-top:1px solid var(--bd);padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;line-height:2;opacity:.85}
+.sitefoot .thanks{margin:0 0 12px;font-size:13px;line-height:1.7}
 .sitefoot a{color:inherit;text-decoration:underline}
 .sitefoot .sep{color:#a8678a;margin:0 12px}
 @media(max-width:800px){#pv{grid-template-columns:148mm}#pv .page{grid-row:auto!important;grid-column:auto!important}}
@@ -44,7 +45,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 }
 </style></head>
 <body>
-<div class="notice">※アップロードした情報は保存されません(このページ内でのみ使用され、送信・保存は行われません)。<br>※ブラウザ（Win11、Chrome）、iOS26.6にて動作確認済みです</div>
+<div class="notice">※アップロードした情報は保存されません(このページ内でのみ使用され、送信・保存は行われません)。<br>※ブラウザ（Win11、Chrome）、iOS26.6にて動作確認済みです<br>※Firefoxでプレビューは崩れることがありますが、PDFは問題ないことがほとんどです。PDFをご確認ください</div>
 <div class="app">
 <div class="panel">
  <label>本文<textarea id="text">吾輩は猫である。名前はまだ無い。
@@ -72,7 +73,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 </div>
 <div id="pvw"><div id="pv"></div></div>
 </div>
-<footer class="sitefoot"><span>A5 縦書き組版ツール</span><span class="sep">|</span><a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a><span class="sep">|</span><a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
+<footer class="sitefoot"><p class="thanks">本ツールの開発に当たりまして、cereal様（@Kellogg_papa）のご協力をいただきました。ありがとうございました。</p><span>A5 縦書き組版ツール</span><span class="sep">|</span><a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a><span class="sep">|</span><a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -82,6 +83,32 @@ function halign(hp,left){return hp==='center'?'center':((hp==='outer')===left?'l
 function fit(){const pv=$('pv'),mob=matchMedia('(max-width:800px)').matches,z=Math.min(1,$('pvw').clientWidth/((mob?1:2)*148*PX));pv.style.transformOrigin='0 0';pv.style.transform=`scale(${z})`;$('pvw').style.height=pv.offsetHeight*z+'px'}
 addEventListener('resize',fit);
 const PX=96/25.4, PT=25.4/72;
+// 段落内の各行の中心x(右→左)を、Range の矩形から実測する
+function lineCx(p,pp,rg){
+ if(!p.textContent){const q=p.getBoundingClientRect();return[(q.left+q.right)/2]} // 空行
+ rg.selectNodeContents(p);
+ const xs=[...rg.getClientRects()].filter(q=>q.width>0&&q.height>0).map(q=>(q.left+q.right)/2).sort((a,b)=>b-a),cs=[];
+ for(const x of xs)if(!cs.length||cs[cs.length-1]-x>pp*.5)cs.push(x);
+ if(!cs.length){const q=p.getBoundingClientRect();cs.push((q.left+q.right)/2)}
+ return cs}
+// 全行を (段落番号, 段落内の行番号) の一覧にする
+function scanLines(m,pp){
+ const rg=document.createRange(),out=[];
+ [...m.children].forEach((p,pi)=>lineCx(p,pp,rg).forEach((cx,ci)=>out.push({pi,ci})));
+ return out}
+// 表示中の各ページで、実際の行位置が理論位置(pp刻み)からずれていたら、本文の位置を補正する。
+// ブラウザによっては行の送りが理論値より僅かに大きく、ページが進むほどズレが溜まって端の行が欠けるため。
+function calibrate(map,N,pp){
+ if(!map)return 0;
+ const rg=document.createRange(),L=map.length;let mx=0;
+ for(const fl of document.querySelectorAll('#pv .flow')){
+  const k=+fl.dataset.k,cl=fl.parentElement,cr=cl.getBoundingClientRect(),z=cr.width/cl.offsetWidth,j0=k*N,j1=Math.min(j0+N-1,L-1);
+  if(!(z>0)||j0>=L)continue;
+  const err=j=>{const e=map[j],cs=lineCx(fl.children[e.pi],pp,rg);return(cr.right-cs[Math.min(e.ci,cs.length-1)])/z-((j-j0)+.5)*pp};
+  const e0=err(j0),e1=j1>j0?err(j1):e0,sft=(e0+e1)/2;
+  if(isFinite(sft)&&Math.abs(sft)>1.5){fl.style.right=(-k*N*pp-sft)+'px';mx=Math.max(mx,Math.abs(sft))}
+ }
+ return mx}
 async function render(){
  if(busy){again=true;return}
  busy=true;
@@ -107,7 +134,8 @@ async function render(){
   // measure
   const m=document.createElement('div');m.className='flow';m.style.cssText=fs+'left:-99999px;visibility:hidden';
   m.innerHTML=html;document.body.appendChild(m);
-  const lines=Math.max(1,Math.round(m.getBoundingClientRect().width/pp));
+  const mw=m.getBoundingClientRect().width,lw=Math.max(1,Math.round(mw/pp));
+  const sc=scanLines(m,pp),useSc=sc.length>0&&Math.abs(mw/sc.length-pp)<pp*.15,lines=useSc?sc.length:lw,map=useSc?sc:null; // 実測の行数(理論幅の丸めだと、行送りが僅かにずれる環境で行数を誤る)
   m.remove();
   const pages=Math.max(1,Math.ceil(lines/(N*rows)));
   const pv=$('pv');pv.innerHTML='';
@@ -119,7 +147,7 @@ async function render(){
    let s='';
    for(let r=0;r<rows;r++){
     const k=p*rows+r;
-    s+=`<div class="clip" style="left:${ml+(CW-CWw)/2}mm;top:${15+r*(h+GAP)}mm;width:${N*pp}px;height:${h}mm"><div class="flow" style="${fs}right:${-k*N*pp}px">${html}</div></div>`;
+    s+=`<div class="clip" style="left:${ml+(CW-CWw)/2}mm;top:${15+r*(h+GAP)}mm;width:${N*pp}px;height:${h}mm"><div class="flow" data-k="${k}" style="${fs}right:${-k*N*pp}px">${html}</div></div>`;
    }
    const al=halign($('hp').value,left);
    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;top:7mm;text-align:${al}">${hd}</div>`;
@@ -130,7 +158,8 @@ async function render(){
    pg.innerHTML=s;pv.appendChild(pg);
   }
   LAST={html,fs,N,pitch,CWw,pp,h,rows,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
-  $('st').textContent=`${pages}ページ(${lines}行)`;fit();
+  fit();const cal=calibrate(map,N,pp);
+  $('st').textContent=`${pages}ページ(${lines}行)`+(cal>1.5?`(行位置補正 最大${cal.toFixed(1)}px)`:'');
  }catch(e){console.error(e);$('st').textContent='エラー: '+e.message}
  busy=false;
  if(again){again=false;render()}
@@ -138,21 +167,23 @@ async function render(){
 function sched(){clearTimeout(timer);timer=setTimeout(render,400)}
 ['text','cols','size','font','bind','hd','hp','ai','tc','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
 
-const ROT=/[ー―—–〜～…‥（）「」『』〈〉《》【】〔〕［］｛｝＜＞＝：；＋－＿]/,SHIFT=/[、。，．]/,SMALL=/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
+const ROT=/[ー―—–〜～…‥（）「」『』〈〉《》【】〔〕［］｛｝＜＞＝：；＋－＿]/,OPEN=/[（「『〈《【〔［｛＜]/,SHIFT=/[、。，．]/,SMALL=/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
 function extract(){
  const L=LAST,m=document.createElement('div');m.className='flow';m.style.cssText=L.fs+'left:-99999px;visibility:hidden';
  m.innerHTML=L.html;document.body.appendChild(m);
  const b=m.getBoundingClientRect(),pp=L.pp,out=[],r=document.createRange(),tw=document.createTreeWalker(m,NodeFilter.SHOW_TEXT);
  for(let nd;nd=tw.nextNode();){const t=nd.data;
-  if(nd.parentElement.classList.contains('tcy')){const q=nd.parentElement.getBoundingClientRect();out.push({ch:t,tcy:t,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX});continue}
+  if(nd.parentElement.classList.contains('tcy')){const q=nd.parentElement.getBoundingClientRect();out.push({ch:t,tcy:t,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX,h:(q.bottom-q.top)/PX});continue}
   for(let i=0;i<t.length;){
   const ch=String.fromCodePoint(t.codePointAt(i)),len=ch.length;
   if(!/\s/.test(ch)){r.setStart(nd,i);r.setEnd(nd,i+len);const q=r.getClientRects()[0];
-   if(q)out.push({ch,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX});}
+   if(q)out.push({ch,cx:(q.left+q.right)/2,y:(q.top-b.top)/PX,h:(q.bottom-q.top)/PX});}
   i+=len;}}
  m.remove();
  if(out.length){let cur=Math.max(0,Math.round((b.right-out[0].cx)/pp-.5)),pc=out[0].cx;
-  for(const c of out){if(Math.abs(pc-c.cx)>pp*.5){cur+=Math.max(1,Math.round((pc-c.cx)/pp));pc=c.cx}c.line=cur}}
+  for(const c of out){if(Math.abs(pc-c.cx)>pp*.5){cur+=Math.max(1,Math.round((pc-c.cx)/pp));pc=c.cx}c.line=cur}
+  // 実際の送り幅: ブラウザが開き括弧を半角送りにした場合(Firefox等)でも、描画側で位置を合わせるために使う
+  out.forEach((c,i)=>{const n=out[i+1];c.adv=Math.min(c.h,n&&n.line===c.line?n.y-c.y:Infinity)})}
  return out;
 }
 function drawPage(p,byK,M){
@@ -165,7 +196,9 @@ function drawPage(p,byK,M){
    if(c.skip)continue;
    const x=(ml+(CW-L.CWw)/2+L.CWw-((c.line-k*L.N)+.5)*L.pitch)*M,y=(y0+c.y)*M;
    if(c.tcy){const w=g.measureText(c.tcy).width;g.save();g.translate(x,y+.866*f);g.scale(Math.min(1,f/w),1);g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.tcy,0,0);g.restore();continue}
-   if(/[!-~]/.test(c.ch)||ROT.test(c.ch)){g.save();g.translate(x-.38*f,y);g.rotate(Math.PI/2);g.textAlign='left';g.textBaseline='alphabetic';g.fillText(c.ch,0,0);g.restore();continue}
+   if(/[!-~]/.test(c.ch)||ROT.test(c.ch)){let yy=y;
+    if(OPEN.test(c.ch)&&c.adv>0){const a=c.adv*M;if(a>=.3*f&&a<.98*f)yy=y+a-f} // 開き括弧のグリフは字面が右半分にあるため、送り幅が半角ならその分だけ手前から描く
+    g.save();g.translate(x-.38*f,yy);g.rotate(Math.PI/2);g.textAlign='left';g.textBaseline='alphabetic';g.fillText(c.ch,0,0);g.restore();continue}
    let dx=0,dy=0;if(SHIFT.test(c.ch)){dx=.5*f;dy=-.5*f}else if(SMALL.test(c.ch)){dx=.09*f;dy=-.09*f}
    g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.ch,x+dx,y+.88*f+dy);
   }}
