@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>A5 縦書き組版ツール</title>
+<title>A5縦書き組版ツール（小説向け）</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap">
 <style>
 :root{box-sizing:border-box;--bg:#f2f1ee;--pn:#fff;--tx:#222;--bd:#ccc;--ac:#2a5bd7;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -28,7 +28,8 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 .flow p{margin:0;white-space:pre-wrap}
 .flow p.ind{text-indent:1em}
 .hf{position:absolute;font-size:8pt;line-height:1;text-align:center;white-space:nowrap}
-.notice{padding:12px 16px 0;font-size:12px;line-height:1.7;opacity:.85}
+h1{margin:0;padding:16px 16px 0;font-size:19px;line-height:1.4}
+.notice{padding:8px 16px 0;font-size:12px;line-height:1.7;opacity:.85}
 .sitefoot{margin-top:24px;border-top:1px solid var(--bd);padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;line-height:2;opacity:.85}
 .sitefoot .thanks{margin:0 0 12px;font-size:13px;line-height:1.7}
 .sitefoot a{color:inherit;text-decoration:underline}
@@ -37,7 +38,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 @page{size:148mm 210mm;margin:0}
 @media print{
  html,body{background:#fff;margin:0}
- .app{display:block;padding:0}.panel,.notice,.sitefoot{display:none}
+ .app{display:block;padding:0}.panel,.notice,.sitefoot,h1{display:none}
  #pv{display:block;width:auto;transform:none!important}
  #pvw{height:auto!important;overflow:visible!important}
  .page{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -45,6 +46,7 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 }
 </style></head>
 <body>
+<h1>A5縦書き組版ツール（小説向け）</h1>
 <div class="notice">※アップロードした情報は保存されません(このページ内でのみ使用され、送信・保存は行われません)。<br>※ブラウザ（Win11、Chrome）、iOS26.6にて動作確認済みです<br>※Firefoxでプレビューは崩れることがありますが、PDFは問題ないことがほとんどです。PDFをご確認ください</div>
 <div class="app">
 <div class="panel">
@@ -54,11 +56,16 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
 ここに本文を入力してください。改行で段落になり、空行を入れると一行空きます。2026年のような数字も縦中横になります。</textarea></label>
  <div class="row">
   <label>段組み<select id="cols"><option value="1">1段</option><option value="2">2段</option></select></label>
-  <label>文字サイズ<select id="size"><option>8</option><option>9</option><option>9.5</option><option selected>10</option><option>10.5</option><option>11</option><option>12</option><option>14</option></select></label>
+  <label>文字サイズ（pt）<input id="size" type="number" value="10" min="5" max="30" step="0.1" inputmode="decimal" list="sizes"></label><datalist id="sizes"><option value="8"><option value="9"><option value="9.5"><option value="10"><option value="10.5"><option value="11"><option value="12"><option value="14"></datalist>
  </div>
  <div class="row">
   <label>書体<select id="font"><option value="Noto Serif JP">明朝</option><option value="Noto Sans JP">ゴシック</option></select></label>
-  <label>綴じしろ(20mm)<select id="bind"><option value="gutter">ノド(両面印刷用)</option><option value="both">両端(袋とじ用)</option></select></label>
+  <label>綴じしろ位置<select id="bind"><option value="gutter">ノド(両面印刷用)</option><option value="both">両端(袋とじ用)</option></select></label>
+ </div>
+ <div class="row">
+  <label>天地(mm)<input id="mt" type="number" value="15" min="0" max="40" step="0.5" inputmode="decimal"></label>
+  <label>小口(mm)<input id="mf" type="number" value="15" min="0" max="40" step="0.5" inputmode="decimal"></label>
+  <label>綴じしろ(mm)<input id="mg" type="number" value="20" min="0" max="40" step="0.5" inputmode="decimal"></label>
  </div>
  <div class="row"><label>ヘッダー<input id="hd"></label>
   <label style="flex:0 0 110px">ヘッダー位置<select id="hp"><option value="outer">ページ外側</option><option value="center">ページ中央</option><option value="inner">ページ内側</option></select></label></div>
@@ -69,16 +76,17 @@ button{font:inherit;padding:10px;border:0;border-radius:8px;background:var(--ac)
  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="pn" checked>ページ番号を表示</label>
  <button id="pdf">PDFで書き出す</button>
  <div id="st" class="note"></div>
- <div class="note">A5・縦書き。天地・小口15mm、綴じしろ20mm。左始まりは右綴じ(見開きで1 / 3 2 / 5 4…)、右始まりは左綴じ(見開きで1 / 2 3 / 4 5…)。PDFは300dpiの画像として保存されます(文字選択は不可)。</div>
+ <div class="note">A5・縦書き。天地・小口・綴じしろの初期値は15mm・15mm・20mm（いずれも変更可）。左始まりは右綴じ(見開きで1 / 3 2 / 5 4…)、右始まりは左綴じ(見開きで1 / 2 3 / 4 5…)。PDFは300dpiの画像として保存されます(文字選択は不可)。</div>
 </div>
 <div id="pvw"><div id="pv"></div></div>
 </div>
 <footer class="sitefoot"><p class="thanks">本ツールの開発に当たりまして、cereal様（@Kellogg_papa）のご協力をいただきました。ありがとうございました。</p><span>A5 縦書き組版ツール</span><span class="sep">|</span><a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a><span class="sep">|</span><a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
 <script>
 const $=id=>document.getElementById(id);
+const num=(id,d,lo,hi)=>{const v=parseFloat($(id).value);return isFinite(v)?Math.min(hi,Math.max(lo,v)):d}; // 数値入力(空・範囲外は既定値/範囲内に補正)
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 let timer,busy=false,again=false,LAST=null;
-function pinfo(p,ls,both){const n=p+1,left=ls?(n%2===1):(n%2===0);return{n,left,ml:both?20:(left?15:20)}} // 左ページ:ノドは右 / 右ページ:ノドは左
+function pinfo(p,ls,both,F,G){const n=p+1,left=ls?(n%2===1):(n%2===0);return{n,left,ml:both?G:(left?F:G)}} // 左ページ:ノドは右 / 右ページ:ノドは左
 function halign(hp,left){return hp==='center'?'center':((hp==='outer')===left?'left':'right')}
 function fit(){const pv=$('pv'),mob=matchMedia('(max-width:800px)').matches,z=Math.min(1,$('pvw').clientWidth/((mob?1:2)*148*PX));pv.style.transformOrigin='0 0';pv.style.transform=`scale(${z})`;$('pvw').style.height=pv.offsetHeight*z+'px'}
 addEventListener('resize',fit);
@@ -113,9 +121,9 @@ async function render(){
  if(busy){again=true;return}
  busy=true;
  try{
-  const ls=$('ls').checked,sz=+$('size').value,font=$('font').value,rows=+$('cols').value,both=$('bind').value==='both';
+  const ls=$('ls').checked,sz=num('size',10,5,30),font=$('font').value,rows=+$('cols').value,both=$('bind').value==='both';
   const text=$('text').value;
-  const CW=113,CH=180,GAP=8,h=rows===2?(CH-GAP)/2:CH;
+  const T=num('mt',15,0,40),F=num('mf',15,0,40),G=num('mg',20,0,40),CW=148-F-G,CH=210-2*T,GAP=8,h=rows===2?(CH-GAP)/2:CH,hT=Math.max(0,Math.min(7,T/2-.5)); // 天地T・小口F・綴じしろG、ヘッダー/フッターは天地余白の中に置く
   const fpx=sz*PT*PX,CWpx=CW*PX;let best=null; // 行送りは整数pxにする(iOS等で小数pxが丸められてズレるのを防ぐ)
   for(let q=Math.ceil(1.7*fpx);q<=Math.ceil(2.4*fpx);q++){const n=Math.round(CWpx/q),e=Math.abs(n*q-CWpx);if(n>=1&&(!best||e<best.e-.01))best={q,n,e}}
   const pp=best.q,N=best.n,pitch=pp/PX,CWw=N*pitch;
@@ -141,23 +149,23 @@ async function render(){
   const pv=$('pv');pv.innerHTML='';
   const hd=esc($('hd').value),ft=esc($('ft').value);
   for(let p=0;p<pages;p++){
-   const {n,left,ml}=pinfo(p,ls,both);
+   const {n,left,ml}=pinfo(p,ls,both,F,G);
    const pg=document.createElement('div');pg.className='page';
    pg.style.gridRow=Math.floor(n/2)+1;pg.style.gridColumn=left?1:2;
    let s='';
    for(let r=0;r<rows;r++){
     const k=p*rows+r;
-    s+=`<div class="clip" style="left:${ml+(CW-CWw)/2}mm;top:${15+r*(h+GAP)}mm;width:${N*pp}px;height:${h}mm"><div class="flow" data-k="${k}" style="${fs}right:${-k*N*pp}px">${html}</div></div>`;
+    s+=`<div class="clip" style="left:${ml+(CW-CWw)/2}mm;top:${T+r*(h+GAP)}mm;width:${N*pp}px;height:${h}mm"><div class="flow" data-k="${k}" style="${fs}right:${-k*N*pp}px">${html}</div></div>`;
    }
    const al=halign($('hp').value,left);
-   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;top:7mm;text-align:${al}">${hd}</div>`;
-   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm;text-align:center">${ft}</div>`;
+   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;top:${hT}mm;text-align:${al}">${hd}</div>`;
+   s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:${hT}mm;text-align:center">${ft}</div>`;
    if($('pn').checked){
-    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:7mm;text-align:${halign('outer',left)}">${n}</div>`;
+    s+=`<div class="hf" style="left:${ml}mm;width:${CW}mm;bottom:${hT}mm;text-align:${halign('outer',left)}">${n}</div>`;
    }
    pg.innerHTML=s;pv.appendChild(pg);
   }
-  LAST={html,fs,N,pitch,CWw,pp,h,rows,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
+  LAST={html,fs,N,pitch,CWw,pp,h,rows,T,F,G,CW,hT,sz,font,both,ls,pages,hd:$('hd').value,ft:$('ft').value,hp:$('hp').value,pn:$('pn').checked};
   fit();const cal=calibrate(map,N,pp);
   $('st').textContent=`${pages}ページ(${lines}行)`+(cal>1.5?`(行位置補正 最大${cal.toFixed(1)}px)`:'');
  }catch(e){console.error(e);$('st').textContent='エラー: '+e.message}
@@ -165,7 +173,7 @@ async function render(){
  if(again){again=false;render()}
 }
 function sched(){clearTimeout(timer);timer=setTimeout(render,400)}
-['text','cols','size','font','bind','hd','hp','ai','tc','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
+['text','cols','size','font','bind','mt','mf','mg','hd','hp','ai','tc','ft','pn','ls'].forEach(i=>$(i).addEventListener('input',sched));
 
 const ROT=/[ー―—–〜～…‥（）「」『』〈〉《》【】〔〕［］｛｝＜＞＝：；＋－＿]/,OPEN=/[（「『〈《【〔［｛＜]/,SHIFT=/[、。，．]/,SMALL=/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
 function extract(){
@@ -187,11 +195,11 @@ function extract(){
  return out;
 }
 function drawPage(p,byK,M){
- const L=LAST,{n,left,ml}=pinfo(p,L.ls,L.both),cv=document.createElement('canvas');cv.width=Math.round(148*M);cv.height=Math.round(210*M);
+ const L=LAST,{n,left,ml}=pinfo(p,L.ls,L.both,L.F,L.G),cv=document.createElement('canvas');cv.width=Math.round(148*M);cv.height=Math.round(210*M);
  const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';
- const f=L.sz*PT*M,CW=113,GAP=8;
+ const f=L.sz*PT*M,CW=L.CW,GAP=8;
  g.font=`${f}px '${L.font}',serif`;
- for(let r=0;r<L.rows;r++){const k=p*L.rows+r,y0=15+r*(L.h+GAP);
+ for(let r=0;r<L.rows;r++){const k=p*L.rows+r,y0=L.T+r*(L.h+GAP);
   for(const c of byK.get(k)||[]){
    if(c.skip)continue;
    const x=(ml+(CW-L.CWw)/2+L.CWw-((c.line-k*L.N)+.5)*L.pitch)*M,y=(y0+c.y)*M;
@@ -203,7 +211,7 @@ function drawPage(p,byK,M){
    g.textAlign='center';g.textBaseline='alphabetic';g.fillText(c.ch,x+dx,y+.88*f+dy);
   }}
  g.font=`${8*PT*M}px 'Noto Sans JP',sans-serif`;g.textBaseline='middle';
- const hy=(7+4*PT)*M,fy=(210-7-4*PT)*M,txt=(t,x,y,al)=>{g.textAlign=al;g.fillText(t,x*M,y)};
+ const hy=(L.hT+4*PT)*M,fy=(210-L.hT-4*PT)*M,txt=(t,x,y,al)=>{g.textAlign=al;g.fillText(t,x*M,y)};
  const al=halign(L.hp,left);txt(L.hd,al==='left'?ml:al==='right'?ml+CW:ml+CW/2,hy,al);
  const ax=a=>a==='left'?ml:a==='right'?ml+CW:ml+CW/2;txt(L.ft,ax('center'),fy,'center');
  if(L.pn){const pa=halign('outer',left);txt(String(n),ax(pa),fy,pa)}
